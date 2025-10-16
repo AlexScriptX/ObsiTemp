@@ -1,36 +1,27 @@
--- Enhanced thread identity protection with better error handling
 local ThreadFix = setthreadidentity and true or false
 if ThreadFix then
     local success = pcall(function() 
         setthreadidentity(8) 
     end)
-    if not success then
-        -- Fallback thread protection
-        spawn(function()
-            while wait() do
-                pcall(function()
-                    setthreadidentity(8)
-                end)
-            end
-        end)
-    end
 end
 
--- Enhanced cloneref with anti-detection
 local cloneref = cloneref or function(obj)
-    if typeof(obj) == "Instance" then
-        local success, cloned = pcall(function()
-            return obj:Clone()
-        end)
-        if success then
-            return cloned
-        end
-    end
     return obj
 end
 
 local secureCall = function(func, ...)
-    local success, result = pcall(func, ...)
+    if not func then return nil end
+    
+    local args = {...}
+    local success, result
+    
+    task.spawn(function()
+        success, result = pcall(function()
+            return func(unpack(args))
+        end)
+    end)
+    
+    task.wait(0)
     return success and result or nil
 end
 
@@ -44,205 +35,55 @@ local function randomString(length)
     return result
 end
 
--- Advanced Anti-Detection System for "yep and we're detected"
-local function createAntiDetection()
-    local antiDetect = {}
-    
-    -- Backup original functions before any hooks
-    local originalFunctions = {
-        game = game,
-        workspace = workspace,
-        script = script,
-        getfenv = getfenv,
-        setfenv = setfenv,
-        debug = debug,
-        pcall = pcall,
-        xpcall = xpcall,
-        coroutine = coroutine
-    }
-    
-    -- Hide script reference completely
-    local realScript = script
-    if realScript then
-        local fakeScript = newproxy(true)
-        local mt = getmetatable(fakeScript)
-        mt.__index = function(_, k)
-            if k == "Destroy" then
-                return function() end -- Prevent script destruction
-            end
-            return rawget(realScript, k)
-        end
-        mt.__newindex = function(_, k, v)
-            if k ~= "Parent" then
-                rawset(realScript, k, v)
-            end
-        end
-        mt.__metatable = randomString(16)
-        script = fakeScript
+local function obfuscateInstance(instance)
+    if typeof(instance) == "Instance" then
+        pcall(function()
+            instance.Name = randomString(math.random(8, 16))
+        end)
     end
-    
-    -- Protect against game:FakeIndex() detection
-    local gameMetatable = getmetatable(game)
-    if gameMetatable then
-        local originalIndex = gameMetatable.__index
-        gameMetatable.__index = function(self, key)
-            if key == "FakeIndex" then
-                return function() end -- Return empty function
-            end
-            return originalIndex(self, key)
-        end
-    end
-    
-    -- Protect workspace from kICK method
-    local workspaceMetatable = getmetatable(workspace)
-    if workspaceMetatable then
-        local originalIndex = workspaceMetatable.__index
-        workspaceMetatable.__index = function(self, key)
-            if key == "kICK" then
-                return function() end -- Prevent kick
-            end
-            return originalIndex(self, key)
-        end
-    end
-    
-    -- Protect debug.info from stack analysis
-    if debug and debug.info then
-        local originalDebugInfo = debug.info
-        debug.info = function(...)
-            local args = {...}
-            if args[1] == 2 and args[2] == "f" then
-                return function() end -- Return dummy function
-            end
-            return originalDebugInfo(...)
-        end
-    end
-    
-    -- Enhanced getfenv protection
-    local originalGetfenv = getfenv
-    getfenv = function(level)
-        if level == 0 or level == 1 then
-            local env = originalGetfenv(level)
-            if env and env.script then
-                env.script = nil -- Remove script reference
-            end
-            return env
-        end
-        return originalGetfenv(level)
-    end
-    
-    -- Protect against environment scanning
-    pcall(function()
-        if getfenv and setfenv then
-            local env = getfenv(0)
-            if env then
-                setfenv(0, setmetatable({}, {
-                    __index = function(_, key)
-                        if key == "script" then
-                            return nil
-                        end
-                        return env[key]
-                    end,
-                    __metatable = randomString(16)
-                }))
-            end
-        end
-    end)
-    
-    return antiDetect
+    return instance
 end
-
--- Initialize anti-detection immediately
-local antiDetectionSystem = createAntiDetection()
-
--- Secure service references with enhanced protection
-local function getSecureService(serviceName)
-    local success, service = pcall(function()
-        return cloneref(game:GetService(serviceName))
-    end)
-    if success then
-        return service
-    else
-        -- Fallback method
-        return game:FindService(serviceName) or game[serviceName]
-    end
-end
-
-local CoreGui = getSecureService("CoreGui")
-local Players = getSecureService("Players")
-local RunService = getSecureService("RunService")
-local SoundService = getSecureService("SoundService")
-local UserInputService = getSecureService("UserInputService")
-local TextService = getSecureService("TextService")
-local Teams = getSecureService("Teams")
-local TweenService = getSecureService("TweenService")
-local Lighting = getSecureService("Lighting")
+local CoreGui: CoreGui = cloneref(game:GetService("CoreGui"))
+local Players: Players = cloneref(game:GetService("Players"))
+local RunService: RunService = cloneref(game:GetService("RunService"))
+local SoundService: SoundService = cloneref(game:GetService("SoundService"))
+local UserInputService: UserInputService = cloneref(game:GetService("UserInputService"))
+local TextService: TextService = cloneref(game:GetService("TextService"))
+local Teams: Teams = cloneref(game:GetService("Teams"))
+local TweenService: TweenService = cloneref(game:GetService("TweenService"))
+local Lighting: Lighting = cloneref(game:GetService("Lighting"))
 local PlayerGui = nil
 
--- Enhanced getgenv with fallback
 local getgenv = getgenv or function()
     return shared
 end
+local setclipboard = setclipboard or nil
 
--- Secure clipboard function
-local setclipboard = setclipboard or function(text)
-    if syn and syn.write_clipboard then
-        syn.write_clipboard(text)
-    elseif Clipboard and Clipboard.set then
-        Clipboard.set(text)
-    end
-end
+local protectgui = protectgui or (syn and syn.protect_gui) or function() end
 
--- Enhanced GUI protection
-local protectgui = protectgui or (syn and syn.protect_gui) or function(gui)
-    if gui then
-        pcall(function()
-            gui.Parent = gethui()
-        end)
-    end
-end
-
--- Secure HUI getter with multiple fallbacks
 local gethui = gethui or function()
-    local success, hui = pcall(function()
-        return game:GetService("CoreGui")
-    end)
-    if success then
-        return hui
-    end
     return CoreGui
 end
 
--- Advanced garbage collection protection
 local gc_protect = function(tbl)
-    if type(tbl) ~= "table" then return end
-    
-    local success = pcall(function()
-        local randomMeta = randomString(16)
-        local randomToString = randomString(12)
-        
-        setmetatable(tbl, {
+    pcall(function()
+        local meta = {
             __mode = "k",
-            __metatable = randomMeta,
-            __tostring = function() return randomToString end,
-            __index = function(t, k)
-                return rawget(t, k)
-            end,
-            __newindex = function(t, k, v)
-                rawset(t, k, v)
-            end
-        })
-    end)
-    
-    if not success then
-        -- Fallback protection
-        for k, v in pairs(tbl) do
-            if type(v) == "function" then
-                tbl[k] = function(...)
-                    return v(...)
+            __metatable = randomString(16),
+            __tostring = function() return randomString(12) end,
+            __index = function(_, k)
+                if rawget(tbl, k) ~= nil then
+                    return rawget(tbl, k)
                 end
+                return nil
+            end,
+            __newindex = function(_, k, v)
+                rawset(tbl, k, v)
             end
-        end
-    end
+        }
+        setmetatable(tbl, meta)
+    end)
+    return tbl
 end
 
 local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
@@ -339,21 +180,21 @@ local ObsidianImageManager = {
     Assets = {
         TransparencyTexture = {
             RobloxId = 139785960036434,
-            Path = "ObsiTemp/assets/TransparencyTexture.png",
+            Path = "ObsiTemp/assets/" .. randomString(8) .. ".png",
 
             Id = nil
         },
         
         SaturationMap = {
             RobloxId = 4155801252,
-            Path = "ObsiTemp/assets/SaturationMap.png",
+            Path = "ObsiTemp/assets/" .. randomString(8) .. ".png",
 
             Id = nil
         },
         
         Blur = {
             RobloxId = 14898786664,
-            Path = "ObsiTemp/assets/blur.png",
+            Path = "ObsiTemp/assets/" .. randomString(8) .. ".png",
 
             Id = nil
         }
@@ -613,26 +454,46 @@ local Sizes = {
 }
 
 local function addBlur(parent)
+    local randomName = randomString(8)
     local blur = Instance.new('ImageLabel')
-    blur.Name = 'Blur'
+    blur.Name = randomName
     blur.Size = UDim2.new(1, 89, 1, 52)
     blur.Position = UDim2.fromOffset(-48, -31)
     blur.BackgroundTransparency = 1
-    blur.Image = ObsidianImageManager.GetAsset('Blur') or 'rbxassetid://14898786664'
+    
+    -- Usar un ID de imagen alternativo para evitar detección
+    local success, result = pcall(function()
+        return ObsidianImageManager.GetAsset('Blur') or 'rbxassetid://14898786664'
+    end)
+    
+    blur.Image = success and result or 'rbxassetid://14898786664'
     blur.ScaleType = Enum.ScaleType.Slice
     blur.SliceCenter = Rect.new(52, 31, 261, 502)
     blur.ZIndex = 0
-    blur.Parent = parent
+    
+    -- Usar secureCall para evitar detección
+    secureCall(function()
+        blur.Parent = parent
+    end)
 
     return blur
 end
 
 local function createBlurEffect()
     if not Library.BlurEffect then
-        Library.BlurEffect = Instance.new("BlurEffect")
-        Library.BlurEffect.Name = "NewBlur"
-        Library.BlurEffect.Size = 0
-        Library.BlurEffect.Parent = Lighting
+        local success, blurEffect = pcall(function()
+            local effect = Instance.new("BlurEffect")
+            effect.Name = randomString(8)
+            effect.Size = 0
+            return effect
+        end)
+        
+        if success then
+            Library.BlurEffect = blurEffect
+            secureCall(function()
+                Library.BlurEffect.Parent = Lighting
+            end)
+        end
     end
 end
 
@@ -642,8 +503,10 @@ local function animateBlur(enabled)
     end
 
     if BlurAnimationThread then
-        task.cancel(BlurAnimationThread)
-        BlurAnimationThread = nil
+        pcall(function()
+            task.cancel(BlurAnimationThread)
+            BlurAnimationThread = nil
+        end)
     end
 
     Library.BlurEnabled = enabled
@@ -659,31 +522,35 @@ local function animateBlur(enabled)
             local targetSize = _BlurSize
 
             while Library.BlurEffect and Library.BlurEffect.Size < targetSize and Library.BlurEnabled do
-                local currentSize = Library.BlurEffect.Size
-                local remaining = targetSize - currentSize
-                local increment = math.min(baseIncrement, remaining)
-                
-                Library.BlurEffect.Size = currentSize + increment
-                
-                if Library.BlurEffect.Size >= targetSize then
-                    Library.BlurEffect.Size = targetSize
-                    break
-                end
+                pcall(function()
+                    local currentSize = Library.BlurEffect.Size
+                    local remaining = targetSize - currentSize
+                    local increment = math.min(baseIncrement, remaining)
+                    
+                    Library.BlurEffect.Size = currentSize + increment
+                    
+                    if Library.BlurEffect.Size >= targetSize then
+                        Library.BlurEffect.Size = targetSize
+                    end
+                end)
                 task.wait(0.03)
+                if not Library.BlurEffect or not Library.BlurEnabled then break end
             end
         else
             while Library.BlurEffect and Library.BlurEffect.Size > 0 and not Library.BlurEnabled do
-                local currentSize = Library.BlurEffect.Size
-                local remaining = currentSize
-                local decrement = math.min(baseIncrement, remaining)
-                
-                Library.BlurEffect.Size = currentSize - decrement
-                
-                if Library.BlurEffect.Size <= 0 then
-                    Library.BlurEffect.Size = 0
-                    break
-                end
+                pcall(function()
+                    local currentSize = Library.BlurEffect.Size
+                    local remaining = currentSize
+                    local decrement = math.min(baseIncrement, remaining)
+                    
+                    Library.BlurEffect.Size = currentSize - decrement
+                    
+                    if Library.BlurEffect.Size <= 0 then
+                        Library.BlurEffect.Size = 0
+                    end
+                end)
                 task.wait(0.03)
+                if not Library.BlurEffect or Library.BlurEnabled then break end
             end
         end
         
@@ -1501,38 +1368,17 @@ local function ParentUI(UI: Instance, SkipHiddenUI: boolean?)
     SafeParentUI(UI, gethui)
 end
 
--- Create ScreenGui with enhanced protection
 local ScreenGui = New("ScreenGui", {
-    Name = randomString(12), -- Random name to avoid detection
+    Name = "CrateGUI",
     DisplayOrder = 999,
     ResetOnSpawn = false,
 })
-
-if ScreenGui then
-    ParentUI(ScreenGui)
-    Library.ScreenGui = ScreenGui
-    
-    -- Secure connection with protection
-    local success = pcall(function()
-        ScreenGui.DescendantRemoving:Connect(function(Instance)
-            Library:RemoveFromRegistry(Instance)
-            Library.DPIRegistry[Instance] = nil
-        end)
-    end)
-    
-    -- Dynamic name changing to avoid detection
-    pcall(function()
-        Library.ScreenGui.Name = randomString(math.random(10, 18))
-        task.spawn(function()
-            while Library.ScreenGui and Library.ScreenGui.Parent do
-                task.wait(math.random(5, 15))
-                if Library.ScreenGui then
-                    Library.ScreenGui.Name = randomString(math.random(10, 18))
-                end
-            end
-        end)
-    end)
-end
+ParentUI(ScreenGui)
+Library.ScreenGui = ScreenGui
+ScreenGui.DescendantRemoving:Connect(function(Instance)
+    Library:RemoveFromRegistry(Instance)
+    Library.DPIRegistry[Instance] = nil
+end)
 
 local ModalElement = New("TextButton", {
     BackgroundTransparency = 1,
@@ -7089,70 +6935,6 @@ pcall(function()
             }))
         end
     end
-end)
-
--- Additional anti-detection measures for "yep and we're detected"
-pcall(function()
-    -- Protect against additional detection methods
-    local originalRequire = require
-    require = function(moduleScript)
-        if typeof(moduleScript) == "string" and moduleScript:find("yep") then
-            return {}
-        end
-        return originalRequire(moduleScript)
-    end
-    
-    -- Protect against loadstring detection
-    local originalLoadstring = loadstring
-    loadstring = function(source, ...)
-        if typeof(source) == "string" and (source:find("yep") or source:find("detected")) then
-            return function() end
-        end
-        return originalLoadstring(source, ...)
-    end
-    
-    -- Additional script protection
-    if script then
-        local scriptMt = getmetatable(script)
-        if scriptMt then
-            local originalIndex = scriptMt.__index
-            scriptMt.__index = function(self, key)
-                if key == "Source" or key == "source" then
-                    return ""
-                end
-                return originalIndex(self, key)
-            end
-        end
-    end
-    
-    -- Protect against game.HttpGet detection
-    local originalHttpGet = game.HttpGet
-    game.HttpGet = function(self, url, ...)
-        if typeof(url) == "string" and (url:find("yep") or url:find("detected")) then
-            return ""
-        end
-        return originalHttpGet(self, url, ...)
-    end
-end)
-
--- Final environment cleanup
-pcall(function()
-    -- Clear any potential detection variables
-    _G.yep = nil
-    _G.detected = nil
-    shared.yep = nil
-    shared.detected = nil
-    
-    -- Protect global environment
-    local mt = getmetatable(_G) or {}
-    local originalIndex = mt.__index
-    mt.__index = function(t, k)
-        if typeof(k) == "string" and (k:lower():find("yep") or k:lower():find("detect")) then
-            return nil
-        end
-        return originalIndex and originalIndex(t, k) or rawget(t, k)
-    end
-    setmetatable(_G, mt)
 end)
 
 return Library
