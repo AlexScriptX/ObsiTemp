@@ -1,4 +1,4 @@
--- Advanced Anti-Detection System
+-- Advanced Anti-Detection System SADA
 local ThreadFix = setthreadidentity and true or false
 if ThreadFix then
     local success = pcall(function() 
@@ -61,6 +61,9 @@ local function getServiceSafe(serviceName)
     return nil
 end
 
+-- Configuration for protection levels
+local ENABLE_AGGRESSIVE_HOOKS = false -- Set to false to disable problematic hooks
+
 -- Advanced environment protection functions
 local function protectEnvironment()
     -- Spoof common detection functions
@@ -75,31 +78,42 @@ local function protectEnvironment()
         env.getrawmetatable = env.getrawmetatable or function() return {} end
     end
     
-    -- Protect against common scanning methods
-    local originalGetChildren = game.GetChildren
-    local originalFindFirstChild = game.FindFirstChild
-    
-    -- Hook GetChildren to filter out our protected instances
-    game.GetChildren = function(self)
-        local children = originalGetChildren(self)
-        local filtered = {}
-        
-        for _, child in ipairs(children) do
-            if not protectedInstances[child] then
-                table.insert(filtered, child)
+    -- Protect against common scanning methods with safer hooks (optional)
+    if ENABLE_AGGRESSIVE_HOOKS then
+        pcall(function()
+            local originalGetChildren = game.GetChildren
+            local originalFindFirstChild = game.FindFirstChild
+            
+            -- Safer GetChildren hook with error handling
+            game.GetChildren = function(self)
+                local success, children = pcall(originalGetChildren, self)
+                if not success then
+                    return {}
+                end
+                
+                local filtered = {}
+                for _, child in ipairs(children or {}) do
+                    if not protectedInstances[child] then
+                        table.insert(filtered, child)
+                    end
+                end
+                
+                return filtered
             end
-        end
-        
-        return filtered
-    end
-    
-    -- Hook FindFirstChild to return nil for protected instances
-    game.FindFirstChild = function(self, name)
-        local child = originalFindFirstChild(self, name)
-        if child and protectedInstances[child] then
-            return nil
-        end
-        return child
+            
+            -- Safer FindFirstChild hook with error handling
+            game.FindFirstChild = function(self, name)
+                local success, child = pcall(originalFindFirstChild, self, name)
+                if not success then
+                    return nil
+                end
+                
+                if child and protectedInstances[child] then
+                    return nil
+                end
+                return child
+            end
+        end)
     end
 end
 
