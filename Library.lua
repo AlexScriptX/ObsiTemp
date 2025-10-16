@@ -1,37 +1,12 @@
--- Enhanced Anti-Detection System
-local ThreadFix = setthreadidentity and true or false
-local currentThreadIdentity = 8
-
--- Advanced Thread Identity Spoofing
-local function spoofThreadIdentity()
-    if ThreadFix then
-        local identities = {2, 3, 4, 5, 6, 7, 8}
-        currentThreadIdentity = identities[math.random(1, #identities)]
-        pcall(function() 
-            setthreadidentity(currentThreadIdentity) 
-        end)
-    end
+local ThreadFix = setthreadidentity and true or false -- 9283823
+if ThreadFix then
+    local success = pcall(function() 
+        setthreadidentity(8) 
+    end)
 end
 
--- Initial thread spoofing
-spoofThreadIdentity()
-
--- Enhanced cloneref with randomization
 local cloneref = cloneref or function(obj)
     return obj
-end
-
--- Secure service access with obfuscation
-local function getServiceSafe(serviceName)
-    local success, service = pcall(function()
-        return cloneref(game:GetService(serviceName))
-    end)
-    if success then
-        return service
-    else
-        -- Fallback with different access method
-        return cloneref(game:FindService(serviceName)) or cloneref(game[serviceName])
-    end
 end
 
 local secureCall = function(func, ...)
@@ -39,16 +14,8 @@ local secureCall = function(func, ...)
     return success and result or nil
 end
 
--- Enhanced random string generation with multiple character sets
-local function randomString(length, charset)
-    local charsets = {
-        default = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789',
-        alpha = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz',
-        mixed = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_',
-        special = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-'
-    }
-    
-    local chars = charsets[charset] or charsets.default
+local function randomString(length)
+    local chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
     local result = ''
     for i = 1, length do
         local rand = math.random(1, #chars)
@@ -57,109 +24,134 @@ local function randomString(length, charset)
     return result
 end
 
--- GUI Name randomization system
-local guiNameCache = {}
-local function getRandomGUIName(prefix)
+-- Advanced Anti-Detection System
+local AntiDetectionEnabled = true
+local ThreadIdentitySpoofing = setthreadidentity and true or false
+local ScanAttempts = 0
+local LastRandomization = tick()
+
+-- Enhanced Thread Identity Spoofing
+local function spoofThreadIdentity()
+    if ThreadIdentitySpoofing and AntiDetectionEnabled then
+        pcall(function()
+            local randomIdentity = math.random(2, 8)
+            setthreadidentity(randomIdentity)
+        end)
+    end
+end
+
+-- Safe Service Access with Multiple Fallbacks
+local function getServiceSafe(serviceName)
+    local attempts = {
+        function() return cloneref(game:GetService(serviceName)) end,
+        function() return game:FindService(serviceName) end,
+        function() return game[serviceName] end,
+        function() return game:WaitForChild(serviceName, 1) end
+    }
+    
+    for _, attempt in ipairs(attempts) do
+        local success, result = pcall(attempt)
+        if success and result then
+            return result
+        end
+    end
+    
+    return nil
+end
+
+-- GUI Name Randomization System
+local GuiNameCache = {}
+local function getRandomGuiName(prefix)
     prefix = prefix or "GUI"
-    local name = prefix .. "_" .. randomString(math.random(8, 16), "mixed")
-    guiNameCache[name] = true
-    return name
+    local baseName = prefix .. "_" .. randomString(12)
+    local uniqueId = randomString(8)
+    local fullName = baseName .. "_" .. uniqueId
+    
+    GuiNameCache[fullName] = {
+        original = prefix,
+        created = tick(),
+        randomized = 0
+    }
+    
+    return fullName
 end
 
--- Environment protection functions
-local originalFunctions = {}
-
--- Spoof common detection functions
-local function spoofEnvironment()
-    pcall(function()
-        if checkcaller then
-            originalFunctions.checkcaller = checkcaller
-            getgenv().checkcaller = function() return true end
-        end
-        
-        if islclosure then
-            originalFunctions.islclosure = islclosure
-            getgenv().islclosure = function() return false end
-        end
-        
-        if getnamecallmethod then
-            originalFunctions.getnamecallmethod = getnamecallmethod
-            getgenv().getnamecallmethod = function() return randomString(8, "alpha") end
-        end
-        
-        if getcallingscript then
-            originalFunctions.getcallingscript = getcallingscript
-            getgenv().getcallingscript = function() return nil end
-        end
-    end)
-end
-
--- Initialize environment spoofing
-spoofEnvironment()
-
--- Enhanced Instance.new hook for automatic obfuscation
+-- Global Instance.new Hook for Auto-Obfuscation
 local originalInstanceNew = Instance.new
 local protectedInstances = {}
 
 local function hookInstanceNew()
-    pcall(function()
-        Instance.new = function(className, parent)
-            local instance = originalInstanceNew(className, parent)
+    if AntiDetectionEnabled then
+        Instance.new = newcclosure(function(className, parent)
+            local instance = originalInstanceNew(className)
             
-            -- Auto-randomize GUI element names
-            if className:match("Gui") or className:match("Frame") or className:match("Button") or 
-               className:match("Label") or className:match("TextBox") or className:match("ScrollingFrame") then
-                instance.Name = getRandomGUIName(className)
-                protectedInstances[instance] = true
-                
-                -- Randomize additional properties
-                if instance:IsA("GuiObject") then
-                    pcall(function()
+            if instance and (className:find("Gui") or className:find("Frame") or className:find("Button") or className:find("Label")) then
+                local randomName = getRandomGuiName(className)
+                pcall(function()
+                    instance.Name = randomName
+                    if instance:IsA("GuiObject") then
                         instance.ZIndex = math.random(1, 100)
-                        if instance:IsA("Frame") or instance:IsA("ScrollingFrame") then
+                        if instance:IsA("Frame") or instance:IsA("TextButton") then
                             instance.BorderSizePixel = math.random(0, 2)
                         end
-                    end)
-                end
+                    end
+                end)
+                
+                protectedInstances[instance] = {
+                    originalName = className,
+                    randomName = randomName,
+                    created = tick()
+                }
+            end
+            
+            if parent then
+                instance.Parent = parent
             end
             
             return instance
-        end
-    end)
+        end)
+    end
 end
 
--- Hook GetChildren and FindFirstChild to filter protected instances
-local function hookSearchMethods()
-    pcall(function()
-        local originalGetChildren = game.GetChildren
-        local originalFindFirstChild = game.FindFirstChild
-        
-        game.GetChildren = function(self)
-            local children = originalGetChildren(self)
-            local filtered = {}
-            for _, child in pairs(children) do
-                if not protectedInstances[child] then
-                    table.insert(filtered, child)
-                end
-            end
-            return filtered
+-- Environment Protection - Spoof Critical Functions
+local originalCheckcaller = checkcaller
+local originalIslclosure = islclosure
+local originalGetnamecallmethod = getnamecallmethod
+local originalGetcallingscript = getcallingscript
+
+local function protectEnvironment()
+    if AntiDetectionEnabled then
+        -- Spoof checkcaller
+        if checkcaller then
+            checkcaller = newcclosure(function()
+                return true
+            end)
         end
         
-        game.FindFirstChild = function(self, name)
-            local child = originalFindFirstChild(self, name)
-            if child and protectedInstances[child] then
+        -- Spoof islclosure
+        if islclosure then
+            islclosure = newcclosure(function()
+                return false
+            end)
+        end
+        
+        -- Spoof getnamecallmethod
+        if getnamecallmethod then
+            getnamecallmethod = newcclosure(function()
+                local methods = {"GetChildren", "FindFirstChild", "WaitForChild", "GetService"}
+                return methods[math.random(1, #methods)]
+            end)
+        end
+        
+        -- Spoof getcallingscript
+        if getcallingscript then
+            getcallingscript = newcclosure(function()
                 return nil
-            end
-            return child
+            end)
         end
-    end)
+    end
 end
-
--- Initialize hooks
-hookInstanceNew()
-hookSearchMethods()
-
--- Secure service declarations with enhanced protection
+-- Service Access Using Safe Method
 local CoreGui: CoreGui = getServiceSafe("CoreGui")
 local Players: Players = getServiceSafe("Players")
 local RunService: RunService = getServiceSafe("RunService")
@@ -170,6 +162,51 @@ local Teams: Teams = getServiceSafe("Teams")
 local TweenService: TweenService = getServiceSafe("TweenService")
 local Lighting: Lighting = getServiceSafe("Lighting")
 local PlayerGui = nil
+
+-- Global Hooks for GetChildren/FindFirstChild
+local function hookChildSearchMethods()
+    if AntiDetectionEnabled then
+        local originalGetChildren = game.GetChildren
+        local originalFindFirstChild = game.FindFirstChild
+        
+        -- Hook GetChildren to filter protected instances
+        game.GetChildren = newcclosure(function(self)
+            ScanAttempts = ScanAttempts + 1
+            local children = originalGetChildren(self)
+            local filtered = {}
+            
+            for _, child in ipairs(children) do
+                local isProtected = false
+                for instance, data in pairs(protectedInstances) do
+                    if instance == child then
+                        isProtected = true
+                        break
+                    end
+                end
+                
+                if not isProtected then
+                    table.insert(filtered, child)
+                end
+            end
+            
+            return filtered
+        end)
+        
+        -- Hook FindFirstChild to avoid finding protected instances
+        game.FindFirstChild = newcclosure(function(self, name)
+            ScanAttempts = ScanAttempts + 1
+            
+            -- Check if looking for protected instance
+            for instance, data in pairs(protectedInstances) do
+                if data.randomName == name or data.originalName == name then
+                    return nil -- Hide protected instance
+                end
+            end
+            
+            return originalFindFirstChild(self, name)
+        end)
+    end
+end
 
 local getgenv = getgenv or function()
     return shared
@@ -182,47 +219,147 @@ local gethui = gethui or function()
     return CoreGui
 end
 
--- Enhanced memory protection with advanced obfuscation
 local gc_protect = function(tbl)
     pcall(function()
-        local modes = {"k", "v", "kv"}
-        local mode = modes[math.random(1, #modes)]
-        
         setmetatable(tbl, {
-            __mode = mode,
-            __metatable = randomString(math.random(12, 20), "special"),
-            __tostring = function() return randomString(math.random(8, 16), "mixed") end,
-            __index = function() return randomString(10, "alpha") end,
-            __newindex = function() end,
-            __call = function() return randomString(8, "default") end
+            __mode = "k",
+            __metatable = randomString(16),
+            __tostring = function() return randomString(12) end
         })
     end)
 end
 
--- Memory protection and cleanup system
-local function protectMemory()
-    pcall(function()
-        -- Periodic garbage collection
-        spawn(function()
-            while true do
-                wait(math.random(30, 60))
-                collectgarbage("collect")
-                spoofThreadIdentity() -- Re-spoof thread identity periodically
-            end
-        end)
-        
-        -- Protect critical metatables
-        local criticalObjects = {getgenv(), shared, _G}
-        for _, obj in pairs(criticalObjects) do
-            if type(obj) == "table" then
-                gc_protect(obj)
-            end
+-- ProxyLibrary for Global Access Interception
+local ProxyLibrary = {}
+local OriginalGlobalRefs = {
+    getgenv = getgenv,
+    shared = shared,
+    _G = _G
+}
+
+local function createProxyLibrary()
+    if AntiDetectionEnabled then
+        -- Intercept getgenv access
+        if OriginalGlobalRefs.getgenv then
+            getgenv = newcclosure(function()
+                ScanAttempts = ScanAttempts + 1
+                local env = OriginalGlobalRefs.getgenv()
+                
+                -- Filter out protected references
+                local filteredEnv = {}
+                for k, v in pairs(env) do
+                    if not (type(k) == "string" and (k:find("Obsidian") or k:find("Library") or k:find("AssetManager"))) then
+                        filteredEnv[k] = v
+                    end
+                end
+                return filteredEnv
+            end)
         end
-    end)
+        
+        -- Intercept shared access
+        local originalShared = shared
+        shared = setmetatable({}, {
+            __index = function(self, key)
+                ScanAttempts = ScanAttempts + 1
+                if type(key) == "string" and (key:find("Obsidian") or key:find("Library") or key:find("AssetManager")) then
+                    return nil
+                end
+                return originalShared[key]
+            end,
+            __newindex = function(self, key, value)
+                if not (type(key) == "string" and (key:find("Obsidian") or key:find("Library") or key:find("AssetManager"))) then
+                    originalShared[key] = value
+                end
+            end,
+            __metatable = randomString(16)
+        })
+    end
 end
 
--- Initialize memory protection
-protectMemory()
+-- Multiple Protection Loops with Variable Intervals
+local function startProtectionLoops()
+    if AntiDetectionEnabled then
+        -- GUI Randomization Loop (45-90 seconds)
+        coroutine.wrap(function()
+            while AntiDetectionEnabled do
+                local interval = math.random(45, 90)
+                wait(interval)
+                
+                -- Re-randomize GUI names
+                for instance, data in pairs(protectedInstances) do
+                    if instance and instance.Parent then
+                        pcall(function()
+                            local newName = getRandomGuiName(data.originalName)
+                            instance.Name = newName
+                            data.randomName = newName
+                            data.randomized = data.randomized + 1
+                            
+                            -- Additional property randomization
+                            if instance:IsA("GuiObject") then
+                                instance.ZIndex = math.random(1, 100)
+                                if instance:IsA("Frame") then
+                                    instance.BorderSizePixel = math.random(0, 2)
+                                end
+                            end
+                        end)
+                    end
+                end
+                
+                -- Clean up cache
+                local currentTime = tick()
+                for name, data in pairs(GuiNameCache) do
+                    if currentTime - data.created > 300 then -- 5 minutes
+                        GuiNameCache[name] = nil
+                    end
+                end
+            end
+        end)()
+        
+        -- Anti-Scan Protection Loop (10-30 seconds)
+        coroutine.wrap(function()
+            while AntiDetectionEnabled do
+                local interval = math.random(10, 30)
+                wait(interval)
+                
+                -- Reset scan attempts periodically
+                if ScanAttempts > 100 then
+                    ScanAttempts = 0
+                end
+                
+                -- Re-spoof thread identity
+                spoofThreadIdentity()
+                
+                -- Garbage collection
+                pcall(function()
+                    collectgarbage("collect")
+                end)
+            end
+        end)()
+        
+        -- Deep Protection Loop (60-120 seconds)
+        coroutine.wrap(function()
+            while AntiDetectionEnabled do
+                local interval = math.random(60, 120)
+                wait(interval)
+                
+                -- Clean up orphaned protected instances
+                for instance, data in pairs(protectedInstances) do
+                    if not instance or not instance.Parent then
+                        protectedInstances[instance] = nil
+                    end
+                end
+                
+                -- Re-protect environment
+                protectEnvironment()
+                
+                -- Re-establish hooks
+                hookInstanceNew()
+                hookChildSearchMethods()
+                createProxyLibrary()
+            end
+        end)()
+    end
+end
 
 local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
 PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
@@ -238,103 +375,11 @@ gc_protect(Buttons)
 gc_protect(Toggles)
 gc_protect(Options)
 
--- Advanced GUI Protection System
-local guiProtectionActive = true
-local scanAttempts = 0
-local maxScanAttempts = 50
-
--- GUI Randomization Loop
-local function startGUIRandomization()
-    spawn(function()
-        while guiProtectionActive do
-            wait(math.random(45, 90)) -- Variable interval
-            
-            pcall(function()
-                -- Re-randomize all GUI names
-                for instance, _ in pairs(protectedInstances) do
-                    if instance and instance.Parent then
-                        local className = instance.ClassName
-                        instance.Name = getRandomGUIName(className)
-                        
-                        -- Randomize additional properties
-                        if instance:IsA("GuiObject") then
-                            instance.ZIndex = math.random(1, 100)
-                            if instance:IsA("Frame") then
-                                instance.BorderSizePixel = math.random(0, 3)
-                            end
-                        end
-                    end
-                end
-                
-                -- Clear old cache entries
-                guiNameCache = {}
-            end)
-        end
-    end)
-end
-
--- Anti-Scan Protection Loop
-local function startAntiScanProtection()
-    spawn(function()
-        while guiProtectionActive do
-            wait(math.random(10, 30))
-            
-            pcall(function()
-                -- Monitor for scanning attempts
-                if scanAttempts > maxScanAttempts then
-                    -- Reset counter and increase protection
-                    scanAttempts = 0
-                    spoofEnvironment()
-                    spoofThreadIdentity()
-                    
-                    -- Re-randomize all protected instances
-                    for instance, _ in pairs(protectedInstances) do
-                        if instance and instance.Parent then
-                            instance.Name = getRandomGUIName(instance.ClassName)
-                        end
-                    end
-                end
-                
-                -- Periodic environment re-spoofing
-                spoofEnvironment()
-            end)
-        end
-    end)
-end
-
--- Path Obfuscation System
-local function obfuscatePaths()
-    pcall(function()
-        -- Obfuscate common detection paths
-        local commonPaths = {
-            "ObsidianUI",
-            "AssetManager", 
-            "Library",
-            "GUI",
-            "Interface",
-            "Menu"
-        }
-        
-        for _, path in pairs(commonPaths) do
-            if _G[path] then
-                _G[randomString(12, "mixed")] = _G[path]
-                _G[path] = nil
-            end
-        end
-    end)
-end
-
--- Initialize protection systems
-startGUIRandomization()
-startAntiScanProtection()
-obfuscatePaths()
-
 local BlurAnimationThread = nil
 local _ShowBlur = true
 local _BlurSize = 13
 local _ShowMobileLockButton = true
 
--- Protected Library object with obfuscated structure
 local Library = {
     LocalPlayer = LocalPlayer,
     DevicePlatform = nil,
@@ -404,78 +449,143 @@ local Library = {
     BlurEnabled = false,
     
     MobileLockButton = nil,
-    
-    -- Anti-detection properties
-    _AntiDetection = {
-        Active = true,
-        ScanCounter = 0,
-        LastRandomization = tick(),
-        ProtectedInstances = protectedInstances,
-        RandomNames = guiNameCache
-    }
 }
 
--- Protect the Library object
-gc_protect(Library)
-gc_protect(Library.Tabs)
-gc_protect(Library.DependencyBoxes)
-gc_protect(Library.KeybindToggles)
-gc_protect(Library.Notifications)
-gc_protect(Library.Signals)
-gc_protect(Library.UnloadSignals)
-gc_protect(Library.Registry)
-gc_protect(Library.DPIRegistry)
-gc_protect(Library._AntiDetection)
+-- Advanced Metatable Protection for Library Object
+local function protectLibraryMetatable()
+    if AntiDetectionEnabled then
+        pcall(function()
+            local originalMeta = getmetatable(Library) or {}
+            
+            setmetatable(Library, {
+                __index = function(self, key)
+                    ScanAttempts = ScanAttempts + 1
+                    
+                    -- Filter sensitive keys
+                    if type(key) == "string" and (key:find("Anti") or key:find("Protected") or key:find("Hook") or key:find("Spoof")) then
+                        return nil
+                    end
+                    
+                    return originalMeta.__index and originalMeta.__index(self, key) or rawget(self, key)
+                end,
+                
+                __newindex = function(self, key, value)
+                    -- Prevent modification of critical properties
+                    if type(key) == "string" and (key:find("Anti") or key:find("Protected") or key:find("Hook") or key:find("Spoof")) then
+                        return
+                    end
+                    
+                    if originalMeta.__newindex then
+                        originalMeta.__newindex(self, key, value)
+                    else
+                        rawset(self, key, value)
+                    end
+                end,
+                
+                __metatable = randomString(24),
+                __mode = "v",
+                __tostring = function()
+                    return randomString(16)
+                end,
+                
+                __pairs = function(self)
+                    ScanAttempts = ScanAttempts + 1
+                    local filtered = {}
+                    for k, v in pairs(self) do
+                        if not (type(k) == "string" and (k:find("Anti") or k:find("Protected") or k:find("Hook") or k:find("Spoof"))) then
+                            filtered[k] = v
+                        end
+                    end
+                    return next, filtered, nil
+                end
+            })
+        end)
+    end
+end
 
--- Proxy Library for scan interception
-local ProxyLibrary = {}
-setmetatable(ProxyLibrary, {
-    __index = function(self, key)
-        scanAttempts = scanAttempts + 1
-        Library._AntiDetection.ScanCounter = Library._AntiDetection.ScanCounter + 1
+-- Initialize All Anti-Detection Systems
+local function initializeAntiDetection()
+    if AntiDetectionEnabled then
+        print("[" .. randomString(6) .. "] Initializing Advanced Anti-Detection Systems...")
         
-        -- Return randomized data for common scan targets
-        if key == "ScreenGui" or key == "MainFrame" or key == "Container" then
-            return {
-                Name = randomString(12, "mixed"),
-                ClassName = "Frame",
-                Parent = nil
-            }
-        end
+        -- Apply initial thread spoofing
+        spoofThreadIdentity()
         
-        return rawget(Library, key)
-    end,
-    __newindex = function() end,
-    __metatable = randomString(16, "special")
-})
+        -- Protect environment
+        protectEnvironment()
+        
+        -- Set up hooks
+        hookInstanceNew()
+        hookChildSearchMethods()
+        
+        -- Create proxy library
+        createProxyLibrary()
+        
+        -- Protect Library metatable
+        protectLibraryMetatable()
+        
+        -- Start protection loops
+        startProtectionLoops()
+        
+        -- Additional safety measures
+        pcall(function()
+            -- Hide script from global tables
+            if getgenv()["ObsiHybrid"] then
+                getgenv()["ObsiHybrid"] = nil
+            end
+            if shared["ObsiHybrid"] then
+                shared["ObsiHybrid"] = nil
+            end
+            if _G["ObsiHybrid"] then
+                _G["ObsiHybrid"] = nil
+            end
+        end)
+        
+        print("[" .. randomString(6) .. "] Anti-Detection Systems Active - UI Protected")
+        
+        -- Create monitoring coroutine
+        coroutine.wrap(function()
+            while AntiDetectionEnabled do
+                wait(30)
+                if ScanAttempts > 50 then
+                    print("[" .. randomString(6) .. "] High scan activity detected: " .. ScanAttempts .. " attempts")
+                end
+            end
+        end)()
+    end
+end
 
--- Obfuscated Asset Manager with randomized paths
-local ObsidianImageManager = {
-    [randomString(8, "alpha")] = { -- Obfuscated "Assets" key
-        [randomString(12, "mixed")] = { -- Obfuscated "TransparencyTexture" key
+-- Initialize systems immediately
+initializeAntiDetection()
+
+-- Obfuscated Asset Manager
+local AssetPathPrefix = randomString(8) .. "/assets/"
+local AssetManagerProxy = {
+    Assets = {
+        TransparencyTexture = {
             RobloxId = 139785960036434,
-            Path = randomString(16, "special") .. "/assets/" .. randomString(8, "mixed") .. ".png",
+            Path = AssetPathPrefix .. randomString(12) .. ".png",
 
             Id = nil
         },
         
         SaturationMap = {
             RobloxId = 4155801252,
-            Path = "ObsiTemp/assets/SaturationMap.png",
+            Path = AssetPathPrefix .. randomString(12) .. ".png",
 
             Id = nil
         },
         
         Blur = {
             RobloxId = 14898786664,
-            Path = "ObsiTemp/assets/blur.png",
+            Path = AssetPathPrefix .. randomString(12) .. ".png",
 
             Id = nil
         }
     }
 }
 do
-    local BaseURL = "https://raw.githubusercontent.com/AlexScriptX/ObsiTemp/refs/heads/main/"
+    local BaseURL = "https://raw.githubusercontent.com/AlexScriptX/" .. randomString(8) .. "/refs/heads/main/"
 
     local function RecursiveCreatePath(Path: string, IsFile: boolean?)
         if not isfolder or not makefolder then return end
@@ -498,12 +608,12 @@ do
         return TraversedPath
     end
 
-    function ObsidianImageManager.GetAsset(AssetName: string)
-        if not ObsidianImageManager.Assets[AssetName] then
+    function AssetManagerProxy.GetAsset(AssetName: string)
+        if not AssetManagerProxy.Assets[AssetName] then
             return nil
         end
 
-        local AssetData = ObsidianImageManager.Assets[AssetName]
+        local AssetData = AssetManagerProxy.Assets[AssetName]
         if AssetData.Id then
             return AssetData.Id
         end
@@ -522,7 +632,7 @@ do
         return AssetID
     end
 
-    function ObsidianImageManager.DownloadAsset(AssetPath: string)
+    function AssetManagerProxy.DownloadAsset(AssetPath: string)
         if not getcustomasset or not writefile or not isfile then
             return
         end
@@ -533,12 +643,12 @@ do
             return
         end
 
-        local URLPath = AssetPath:gsub("ObsiTemp/", "")
+        local URLPath = AssetPath:gsub(AssetPathPrefix, "")
         writefile(AssetPath, game:HttpGet(BaseURL .. URLPath))
     end
 
-    for _, Data in ObsidianImageManager.Assets do
-        ObsidianImageManager.DownloadAsset(Data.Path)
+    for _, Data in AssetManagerProxy.Assets do
+        AssetManagerProxy.DownloadAsset(Data.Path)
     end
 end
 
@@ -733,7 +843,7 @@ local function addBlur(parent)
     blur.Size = UDim2.new(1, 89, 1, 52)
     blur.Position = UDim2.fromOffset(-48, -31)
     blur.BackgroundTransparency = 1
-    blur.Image = ObsidianImageManager.GetAsset('Blur') or 'rbxassetid://14898786664'
+    blur.Image = AssetManagerProxy.GetAsset('Blur') or 'rbxassetid://14898786664'
     blur.ScaleType = Enum.ScaleType.Slice
     blur.SliceCenter = Rect.new(52, 31, 261, 502)
     blur.ZIndex = 0
@@ -2777,7 +2887,7 @@ do
         })
 
         local HolderTransparency = New("ImageLabel", {
-            Image = ObsidianImageManager.GetAsset("TransparencyTexture"),
+            Image = AssetManagerProxy.GetAsset("TransparencyTexture"),
             ImageTransparency = (1 - ColorPicker.Transparency),
             ScaleType = Enum.ScaleType.Tile,
             Size = UDim2.fromScale(1, 1),
@@ -2830,7 +2940,7 @@ do
         --// Sat Map
         local SatVipMap = New("ImageButton", {
             BackgroundColor3 = ColorPicker.Value,
-            Image = ObsidianImageManager.GetAsset("SaturationMap"),
+            Image = AssetManagerProxy.GetAsset("SaturationMap"),
             Size = UDim2.fromOffset(200, 200),
             Parent = ColorHolder,
         })
@@ -2876,7 +2986,7 @@ do
         local TransparencySelector, TransparencyColor, TransparencyCursor
         if Info.Transparency then
             TransparencySelector = New("ImageButton", {
-                Image = ObsidianImageManager.GetAsset("TransparencyTexture"),
+                Image = AssetManagerProxy.GetAsset("TransparencyTexture"),
                 ScaleType = Enum.ScaleType.Tile,
                 Size = UDim2.fromOffset(16, 200),
                 TileSize = UDim2.fromOffset(8, 8),
@@ -7183,66 +7293,6 @@ pcall(function()
             }))
         end
     end
-end)
-
--- Final Anti-Detection Measures
-pcall(function()
-    -- Advanced metatable protection for Library
-    local originalMeta = getmetatable(Library) or {}
-    setmetatable(Library, {
-        __index = originalMeta.__index or function(self, key)
-            scanAttempts = scanAttempts + 1
-            return rawget(self, key)
-        end,
-        __newindex = originalMeta.__newindex or function() end,
-        __metatable = randomString(20, "special"),
-        __tostring = function() return randomString(16, "mixed") end,
-        __call = function() return randomString(12, "alpha") end
-    })
-    
-    -- Protect global references
-    if getgenv then
-        local env = getgenv()
-        if env.Library then
-            env[randomString(10, "mixed")] = env.Library
-            env.Library = ProxyLibrary
-        end
-    end
-    
-    if shared.Library then
-        shared[randomString(10, "mixed")] = shared.Library
-        shared.Library = ProxyLibrary
-    end
-    
-    if _G.Library then
-        _G[randomString(10, "mixed")] = _G.Library
-        _G.Library = ProxyLibrary
-    end
-    
-    -- Final thread identity randomization
-    spoofThreadIdentity()
-    
-    -- Start continuous protection monitoring
-    spawn(function()
-        while Library._AntiDetection.Active do
-            wait(math.random(60, 120))
-            
-            -- Periodic deep protection refresh
-            spoofEnvironment()
-            spoofThreadIdentity()
-            obfuscatePaths()
-            
-            -- Clean up old protected instances
-            for instance, _ in pairs(protectedInstances) do
-                if not instance or not instance.Parent then
-                    protectedInstances[instance] = nil
-                end
-            end
-            
-            -- Force garbage collection
-            collectgarbage("collect")
-        end
-    end)
 end)
 
 return Library
